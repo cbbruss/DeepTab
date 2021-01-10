@@ -3,3 +3,6 @@
 dist/
 frustanet.egg-info/
 build/
+.pytest_cache/
+frustanet/__pycache__/
+tests/__pycache__/
