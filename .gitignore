@@ -6,3 +6,5 @@ build/
 .pytest_cache/
 frustanet/__pycache__/
 tests/__pycache__/
+__pycache__/
+lightning_logs/
