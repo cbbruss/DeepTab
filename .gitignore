@@ -1,2 +1,5 @@
+## Frustanet Git Ignore Files ##
+
 dist/
-frustnet.egg-info/
+frustanet.egg-info/
+build/
