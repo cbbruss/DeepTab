@@ -21,12 +21,12 @@ def main():
     X_train, X_test_valid, y_train, y_test_valid = train_test_split(X, y, test_size=0.3, random_state=42)
     X_test, X_valid, y_test, y_valid = train_test_split(X_test_valid, y_test_valid, test_size=0.5, random_state=42)
 
-    train_mean = X_train.mean(axis=0)
-    train_std = X_train.std(axis=0)
+    # train_mean = X_train.mean(axis=0)
+    # train_std = X_train.std(axis=0)
 
-    X_train = (X_train - train_mean) / train_std
-    X_valid = (X_valid - train_mean) / train_std
-    X_test = (X_test - train_mean) / train_std
+    # X_train = (X_train - train_mean) / train_std
+    # X_valid = (X_valid - train_mean) / train_std
+    # X_test = (X_test - train_mean) / train_std
     
 
 
@@ -41,13 +41,15 @@ def main():
     train_datasets = TensorDataset(X_train, y_train)
     valid_datasets = TensorDataset(X_valid, y_valid)
 
-    train_loader = DataLoader(train_datasets, batch_size=256, shuffle=True)
+    train_loader = DataLoader(train_datasets, batch_size=512, shuffle=True)
     valid_loader = DataLoader(valid_datasets)
-    f_model = FrustaNetRegression(n_features=n_features)
+    
+    f_model = FrustaNetRegression(n_features=n_features, n_estimators=2)
     trainer = Trainer(callbacks=[EarlyStopping(monitor='Val Loss')])
     trainer.fit(f_model, train_loader, valid_loader)
-    f_preds = f_model.forward(X_valid)
-    print(np.mean((f_preds[0].flatten().detach().numpy() - y_valid.flatten().numpy()) ** 2))
+
+    pred = f_model.predict(X_valid)
+    print(torch.mean((pred - y_valid) ** 2))
 
     ## Training Comparison GBM
     reg = GradientBoostingRegressor(random_state=0, verbose=True)

@@ -6,35 +6,29 @@ from pytorch_lightning.core.lightning import LightningModule
 
 class FrustaNetRegression(LightningModule):
 
-    def __init__(self, n_features):
+    def __init__(self, n_features, n_estimators=1):
         super().__init__()
 
-        """Let's start with one linear model and one
-            non-linear model.
+        """Every model starts with linear estimator.
+        All subsquent models are added with non-linearities.
 
             Args:
-                input_size: dimensions of input
+                n_features: dimensions of input
+                n_estimators: number of weak learners to fit
         """
+        self.n_estimators = n_estimators
+
         self.linear = torch.nn.Linear(n_features, 1)
 
-        self.f2_layer0 = torch.nn.Linear(n_features, n_features*2)
-        self.f2_bnorm = torch.nn.BatchNorm1d(n_features*2)
-        self.f2_layer1 = torch.nn.Linear(n_features*2, 1)
+        if n_estimators > 1:
+            self.estimators = nn.ModuleList()
 
-        self.f3_layer0 = torch.nn.Linear(n_features, n_features*4)
-        self.f3_bnorm0 = torch.nn.BatchNorm1d(n_features*4)
-        self.f3_layer1 = torch.nn.Linear(n_features*4, n_features*2)
-        self.f3_bnorm1 = torch.nn.BatchNorm1d(n_features*2)
-        self.f3_layer2 = torch.nn.Linear(n_features*2, 1)
-
-        self.f4_layer0 = torch.nn.Linear(n_features, n_features*8)
-        self.f4_bnorm0 = torch.nn.BatchNorm1d(n_features*8)
-        self.f4_layer1 = torch.nn.Linear(n_features*8, n_features*4)
-        self.f4_bnorm1 = torch.nn.BatchNorm1d(n_features*4)
-        self.f4_layer2 = torch.nn.Linear(n_features*4, n_features*2)
-        self.f4_bnorm2 = torch.nn.BatchNorm1d(n_features*2)
-        self.f4_layer3 = torch.nn.Linear(n_features*2, 1)
-
+            for n in range(n_estimators):
+                estim_layers = nn.ModuleList()
+                estim_layers.append(torch.nn.Linear(n_features, n_features*2))
+                estim_layers.append(torch.nn.Sigmoid())
+                estim_layers.append(torch.nn.Linear(n_features*2, 1))
+                self.estimators.append(estim_layers)
 
     def forward(self, x):
         """
@@ -44,65 +38,79 @@ class FrustaNetRegression(LightningModule):
             Args:
                 x: model inputs
             Returns:
-                out: model prediction
+                out: list of model predictions
         """
 
         out_linear = self.linear(x)
 
-        out_f2 = self.f2_layer0(x)
-        out_f2 = self.f2_bnorm(out_f2)
-        out_f2 = torch.tanh(out_f2)
-        out_f2 = self.f2_layer1(out_f2)
+        estim_out = [out_linear]
+        
+        if self.n_estimators > 1:
+            for i, estim in enumerate(self.estimators):
+                layer_in = x
+                for layer in estim:
+                    layer_in = layer(layer_in)
+                estim_out.append(layer_in)
 
-        out_f3 = self.f3_layer0(x)
-        out_f3 = self.f3_bnorm0(out_f3)
-        out_f3 = torch.tanh(out_f3)
-        out_f3 = self.f3_layer1(out_f3)
-        out_f3 = self.f3_bnorm1(out_f3)
-        out_f3 = torch.tanh(out_f3)
-        out_f3 = self.f3_layer2(out_f3)
-
-        out_f4 = self.f4_layer0(x)
-        out_f4 = self.f4_bnorm0(out_f4)
-        out_f4 = torch.tanh(out_f4)
-        out_f4 = self.f4_layer1(out_f4)
-        out_f4 = self.f4_bnorm1(out_f4)
-        out_f4 = torch.tanh(out_f4)
-        out_f4 = self.f4_layer2(out_f4)
-        out_f4 = self.f4_bnorm2(out_f4)
-        out_f4 = torch.tanh(out_f4)
-        out_f4 = self.f4_layer3(out_f4)
-
-        out_final = out_linear + out_f2 + out_f3 + out_f4
-        # out_final = out_linear
-
-
-        return out_final, out_linear, out_f2, out_f3, out_f4
+        return estim_out
 
     def training_step(self, batch, batch_idx):
-        mseloss = nn.MSELoss()
+        """
+            The first estimator of this model is a linear
+            model. Every subsequent model seeks to predict
+            the residual of the estimator before it. The loss
+            function is the sum over the individual squared
+            residuals of all the estimators.
+
+            Args: 
+                batch
+                batch_idx
+
+            Returns:
+                loss
+
+        """
         x, y = batch
-        y_hat, y_linear, y_f2, y_f3, y_f4 = self(x)
-        l_linear = mseloss(y_linear, y)
-        l_f2 = mseloss(y_f2, y)
-        l_f3 = mseloss(y_f3, y)
-        l_f4 = mseloss(y_f4, y)
-        loss = mseloss(y_hat, y)
+        estim_out = self(x)
+        # Start with the linear residual
+        # If the is only one estimator selected
+        # The model collapses to a linear regression
+        # With squared error loss
+        resids = [y - estim_out[0]]
+        if self.n_estimators > 1:
+            for i, e_out in enumerate(estim_out):
+                if i > 0:
+                    resids.append(resids[i-1] - e_out)
+
+        loss = 0
+        for i, r in enumerate(resids):
+            l = torch.mean(r ** 2)
+            self.log('Loss Estimator '+str(i), l, on_step=True)
+            loss += l
 
         self.log('Loss', loss, on_step=True)
-        self.log('Linear Loss', l_linear, on_step=True)
-        self.log('F2 Loss', l_f2, on_step=True)
-        self.log('F3 Loss', l_f3, on_step=True)
-        self.log('F4 Loss', l_f4, on_step=True)
         return loss
 
     def configure_optimizers(self):
-        return Adam(self.parameters(), lr=0.001, weight_decay=0.1)
+        return Adam(self.parameters(), lr=0.01, weight_decay=0.001)
 
     def validation_step(self, batch, batch_idx):
+        """
+            On validation we want to compute the 
+            mean squared error of the model.
+            The prediction is generated by summing 
+            up all the individual estimators predictions.
+        """
         mseloss = nn.MSELoss()
         x, y = batch
-        y_hat, y_linear, y_f2, y_f3, y_f4 = self(x)
-        loss = mseloss(y_hat, y)
+        pred = self.predict(x)
+        loss = mseloss(y, pred)
         self.log('Val Loss', loss)
+        return loss
 
+    def predict(self, x):
+        estim_out = self(x)
+        pred = 0
+        for e in estim_out:
+            pred += e
+        return pred
