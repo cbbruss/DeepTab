@@ -32,23 +32,26 @@
 <!-- PROJECT LOGO -->
 <br />
 <p align="center">
-  <a href="https://github.com/github_username/repo_name">
+<!--   <a href="https://github.com/cbbruss/DeepTab">
     <img src="images/logo.png" alt="Logo" width="80" height="80">
-  </a>
+  </a> -->
 
-  <h3 align="center">project_title</h3>
+  <h3 align="center">DeepTab</h3>
 
   <p align="center">
-    project_description
+    While deep learning is exceptional for computer vision, NLP and even some graph tasks, it remains
+    to be seen whether it will ever replace popular ensemble techniques like gradient boosted trees
+    and random forests for tabular data. This project seeks to define a neural network that outperforms
+    ensemble methods both in terms of performance and versatility.
     <br />
-    <a href="https://github.com/github_username/repo_name"><strong>Explore the docs »</strong></a>
+    <a href="https://github.com/cbbruss/DeepTab"><strong>Explore the docs »</strong></a>
     <br />
     <br />
-    <a href="https://github.com/github_username/repo_name">View Demo</a>
+    <a href="https://github.com/cbbruss/DeepTab">View Demo</a>
     ·
-    <a href="https://github.com/github_username/repo_name/issues">Report Bug</a>
+    <a href="https://github.com/cbbruss/DeepTab/issues">Report Bug</a>
     ·
-    <a href="https://github.com/github_username/repo_name/issues">Request Feature</a>
+    <a href="https://github.com/cbbruss/DeepTab/issues">Request Feature</a>
   </p>
 </p>
 
