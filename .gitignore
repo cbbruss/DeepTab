@@ -1,10 +1,10 @@
 ## Frustanet Git Ignore Files ##
 
 dist/
-frustanet.egg-info/
+deeptab.egg-info/
 build/
 .pytest_cache/
-frustanet/__pycache__/
+deeptab/__pycache__/
 tests/__pycache__/
 __pycache__/
 lightning_logs/
