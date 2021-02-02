@@ -10,7 +10,7 @@ from sklearn.ensemble import GradientBoostingRegressor
 import numpy as np
 
 
-from frustanet.model import FrustaNetRegression
+from deeptab.model import DeepTabRegression
 
 
 def main():
@@ -44,9 +44,11 @@ def main():
     train_loader = DataLoader(train_datasets, batch_size=512, shuffle=True)
     valid_loader = DataLoader(valid_datasets)
     
-    f_model = FrustaNetRegression(n_features=n_features, n_estimators=2)
-    trainer = Trainer(callbacks=[EarlyStopping(monitor='Val Loss')])
-    trainer.fit(f_model, train_loader, valid_loader)
+    f_model = DeepTabRegression(n_features=n_features, n_estimators=1)
+    for i in range(10):
+        trainer = Trainer(callbacks=[EarlyStopping(monitor='Val Loss')])
+        trainer.fit(f_model, train_loader, valid_loader)
+        f_model.add_estimator()
 
     pred = f_model.predict(X_valid)
     print(torch.mean((pred - y_valid) ** 2))

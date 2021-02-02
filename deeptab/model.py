@@ -4,7 +4,7 @@ from torch.nn import functional as F
 from torch.optim import Adam
 from pytorch_lightning.core.lightning import LightningModule
 
-class FrustaNetRegression(LightningModule):
+class DeepTabRegression(LightningModule):
 
     def __init__(self, n_features, n_estimators=1):
         super().__init__()
@@ -17,18 +17,28 @@ class FrustaNetRegression(LightningModule):
                 n_estimators: number of weak learners to fit
         """
         self.n_estimators = n_estimators
+        self.n_features = n_features
 
         self.linear = torch.nn.Linear(n_features, 1)
 
+        self.estimators = nn.ModuleList()
+
         if n_estimators > 1:
-            self.estimators = nn.ModuleList()
 
             for n in range(n_estimators):
-                estim_layers = nn.ModuleList()
-                estim_layers.append(torch.nn.Linear(n_features, n_features*2))
-                estim_layers.append(torch.nn.Sigmoid())
-                estim_layers.append(torch.nn.Linear(n_features*2, 1))
-                self.estimators.append(estim_layers)
+                self.add_estimator()
+                
+
+    def add_estimator(self):
+        estim_layers = nn.ModuleList()
+        estim_layers.append(torch.nn.Linear(self.n_features, self.n_features))
+        estim_layers.append(torch.nn.ReLU())
+        estim_layers.append(torch.nn.Linear(self.n_features, self.n_features))
+        estim_layers.append(torch.nn.ReLU())
+        estim_layers.append(torch.nn.Linear(self.n_features, self.n_features))
+        estim_layers.append(torch.nn.ReLU())
+        estim_layers.append(torch.nn.Linear(self.n_features, 1))
+        self.estimators.append(estim_layers)
 
     def forward(self, x):
         """
@@ -92,7 +102,7 @@ class FrustaNetRegression(LightningModule):
         return loss
 
     def configure_optimizers(self):
-        return Adam(self.parameters(), lr=0.01, weight_decay=0.001)
+        return Adam(self.parameters(), lr=0.01, weight_decay=0.01)
 
     def validation_step(self, batch, batch_idx):
         """
