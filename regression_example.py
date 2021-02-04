@@ -37,6 +37,9 @@ def main():
     y_train = tensor(y_train, dtype=torch.float).reshape(-1, 1)
     y_valid = tensor(y_valid, dtype=torch.float).reshape(-1, 1)
     y_test = tensor(y_test, dtype=torch.float).reshape(-1, 1)
+    print(X_train.shape)
+    print(X_valid.shape)
+    print(X_test.shape)
 
     train_datasets = TensorDataset(X_train, y_train)
     valid_datasets = TensorDataset(X_valid, y_valid)
@@ -45,22 +48,25 @@ def main():
     valid_loader = DataLoader(valid_datasets)
     
     f_model = DeepTabRegression(n_features=n_features, n_estimators=1)
-    for i in range(10):
+    trainer = Trainer(callbacks=[EarlyStopping(monitor='Val Loss')])
+    trainer.fit(f_model, train_loader, valid_loader)
+
+    for i in range(2):
+        f_model.add_estimator()
         trainer = Trainer(callbacks=[EarlyStopping(monitor='Val Loss')])
         trainer.fit(f_model, train_loader, valid_loader)
-        f_model.add_estimator()
 
-    pred = f_model.predict(X_valid)
-    print(torch.mean((pred - y_valid) ** 2))
+    pred = f_model.predict(X_test)
+    print(torch.mean((pred - y_test) ** 2))
 
     ## Training Comparison GBM
     reg = GradientBoostingRegressor(random_state=0, verbose=True)
 
     reg.fit(X_train, y_train)
 
-    preds = reg.predict(X_valid)
+    preds = reg.predict(X_test)
 
-    print(np.mean((preds - y_valid.flatten().numpy()) ** 2))
+    print(np.mean((preds - y_test.flatten().numpy()) ** 2))
 
 if __name__ == '__main__':
     main()

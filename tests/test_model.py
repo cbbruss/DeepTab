@@ -56,3 +56,16 @@ def test_predict():
     mse = torch.mean((preds - y) ** 2)
     assert len(preds) == 2
     assert mse
+
+def test_add_estimator():
+    net = DeepTabRegression(n_features=10, n_estimators=1)
+    x = torch.randn(2, 10)
+    y = torch.randn(2, 1)
+    out = net(x)
+    loss = net.training_step((x, y), 0)
+    net.add_estimator()
+    out1 = net(x)
+    loss1 = net.training_step((x, y), 0)
+    assert loss.shape == loss1.shape
+    assert len(out[0]) == 2
+

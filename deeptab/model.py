@@ -22,23 +22,29 @@ class DeepTabRegression(LightningModule):
         self.linear = torch.nn.Linear(n_features, 1)
 
         self.estimators = nn.ModuleList()
-
-        if n_estimators > 1:
-
-            for n in range(n_estimators):
-                self.add_estimator()
                 
 
     def add_estimator(self):
-        estim_layers = nn.ModuleList()
-        estim_layers.append(torch.nn.Linear(self.n_features, self.n_features))
-        estim_layers.append(torch.nn.ReLU())
-        estim_layers.append(torch.nn.Linear(self.n_features, self.n_features))
-        estim_layers.append(torch.nn.ReLU())
-        estim_layers.append(torch.nn.Linear(self.n_features, self.n_features))
-        estim_layers.append(torch.nn.ReLU())
-        estim_layers.append(torch.nn.Linear(self.n_features, 1))
-        self.estimators.append(estim_layers)
+        # Freeze old layers for stability
+        for param in self.linear.parameters():
+            param.requires_grad = False
+
+        for estim in self.estimators:
+            for param in estim.parameters():
+                param.requires_grad = False
+
+        # for module in self.estimators:
+        self.estimators.append(self.estimator(self.n_features))
+        self.n_estimators += 1
+
+    def estimator(self, n_features):
+        block = nn.Sequential(
+            torch.nn.Linear(n_features, n_features),
+            torch.nn.Tanh(),
+            # torch.nn.Linear(self.n_features, self.n_features)
+            # torch.nn.ReLU()
+            torch.nn.Linear(n_features, 1))
+        return block
 
     def forward(self, x):
         """
@@ -56,11 +62,9 @@ class DeepTabRegression(LightningModule):
         estim_out = [out_linear]
         
         if self.n_estimators > 1:
-            for i, estim in enumerate(self.estimators):
-                layer_in = x
-                for layer in estim:
-                    layer_in = layer(layer_in)
-                estim_out.append(layer_in)
+            for estim in self.estimators:
+                out = estim(x)
+                estim_out.append(out)
 
         return estim_out
 
@@ -88,21 +92,20 @@ class DeepTabRegression(LightningModule):
         # With squared error loss
         resids = [y - estim_out[0]]
         if self.n_estimators > 1:
-            for i, e_out in enumerate(estim_out):
-                if i > 0:
-                    resids.append(resids[i-1] - e_out)
+            for i, e_out in enumerate(estim_out[1:]):
+                resids.append(resids[i-1] - e_out)  
 
         loss = 0
         for i, r in enumerate(resids):
             l = torch.mean(r ** 2)
-            self.log('Loss Estimator '+str(i), l, on_step=True)
             loss += l
+            self.log('Loss Estimator '+ str(i), l, on_step=True)
 
         self.log('Loss', loss, on_step=True)
         return loss
 
     def configure_optimizers(self):
-        return Adam(self.parameters(), lr=0.01, weight_decay=0.01)
+        return Adam(self.parameters(), lr=0.005)
 
     def validation_step(self, batch, batch_idx):
         """
